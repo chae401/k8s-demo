@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+# Deployment : main part - Blueprint for pods
+kind: Deployment
+metadata:
+  name: mongo-deployment
+  # label
+  # - you can give any K8s component a lable
+  # - Labels are key/value pairs that are attached to K8s resources
+  # - Identifier, which should be meaningful and relvant to users.
+  # - All pod replicas will have the same label to connect Deployment to all pod replicas
+  labels:
+    app: mongo
+spec:
+  # replicas = how many pods you want to create?
+  replicas: 1
+  selector:
+    # match all pods with label "app:mongo"(or "mykey:myvalue")
+    matchLabels:
+      app: mongo
+  # template : configuration for pod. template has own "metadata" and own "spec" section
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+      # what image? what port?
+      - name: mongodb
+        image: mongo:latest # https://hub.docker.com/layers/library/mongo/latest/images/sha256-655bf6f8d962f008d00b31cf75634b529f72701acc652ba0b45cf99fd5303851?context=explore
+        ports:
+        - containerPort: 27017 # https://hub.docker.com/_/mongo
+        env:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            valueFrom: 
+              secretKeyRef:
+                # find key "mongo-user" in mongo-sercret.yaml
+                name: mongo-secret
+                key: mongo-user
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            valueFrom: 
+              secretKeyRef:
+                name: mongo-secret
+                key: mongo-password
+
+--- # you can have multiple yaml configurations with 1 file.
+
+apiVersion: v1
+kind: Service
+metadata:
+  # name: an arbitrary name
+  name: mongo-service
+spec:
+  # selector: select pods to forward the requests to connect service to pods
+  selector:
+    # should match the label to find each other
+    app: mongo
+  ports:
+    - protocol: TCP
+      # port: service port
+      port: 27017
+      # target port: containerPort of Deployment
+      targetPort: 27017
+  # Request -> port: 27017 -> Mongo Service -> targetPort: 27017 -> Pod(containerPort: 27017)
